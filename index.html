@@ -1196,6 +1196,8 @@ function checkAnswer() {
     playSound('eoh');
     $('feedback').textContent = '答錯了～再想想看，可以再試一次！';
     $('feedback').className = 'feedback bad';
+    inputStr = '';          // 清空舊答案，讓使用者直接輸入新答案
+    renderInput();
   }
 }
 
