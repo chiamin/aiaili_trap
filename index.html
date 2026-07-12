@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我愛陷阱題</title>
+<style>
+  :root {
+    --bg: #fff7ed;
+    --card: #ffffff;
+    --accent: #f97316;
+    --accent-dark: #ea580c;
+    --ok: #16a34a;
+    --bad: #dc2626;
+    --ink: #1f2937;
+    --muted: #6b7280;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 60px;
+  }
+  h1 {
+    font-size: 2rem;
+    margin: 12px 0 4px;
+    color: var(--accent-dark);
+  }
+  .subtitle { color: var(--muted); margin: 0 0 24px; font-size: 0.95rem; }
+  .card {
+    background: var(--card);
+    width: 100%;
+    max-width: 560px;
+    border-radius: 20px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+    padding: 28px 26px 30px;
+  }
+  .tag {
+    display: inline-block;
+    background: #fff1e6;
+    color: var(--accent-dark);
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 999px;
+    margin-bottom: 16px;
+  }
+  .question {
+    font-size: 1.3rem;
+    line-height: 1.7;
+    margin: 0 0 22px;
+    font-weight: 500;
+  }
+  .answer-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  input[type="text"] {
+    flex: 1;
+    font-size: 1.15rem;
+    padding: 12px 14px;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    outline: none;
+  }
+  input[type="text"]:focus { border-color: var(--accent); }
+  button {
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 18px;
+    cursor: pointer;
+    transition: transform 0.05s, background 0.15s;
+  }
+  button:active { transform: scale(0.97); }
+  .btn-check { background: var(--accent); color: #fff; }
+  .btn-check:hover { background: var(--accent-dark); }
+  .btn-row { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+  .btn-secondary {
+    background: #fff;
+    color: var(--accent-dark);
+    border: 2px solid var(--accent);
+    flex: 1;
+  }
+  .btn-secondary:hover { background: #fff7f0; }
+  .feedback {
+    margin-top: 16px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    min-height: 1.4em;
+  }
+  .feedback.ok { color: var(--ok); }
+  .feedback.bad { color: var(--bad); }
+  .explain {
+    margin-top: 18px;
+    background: #fffbeb;
+    border-left: 5px solid #f59e0b;
+    border-radius: 10px;
+    padding: 14px 16px;
+    line-height: 1.7;
+    display: none;
+  }
+  .explain.show { display: block; }
+  .explain .label { font-weight: 700; color: var(--accent-dark); }
+  .explain .ans { font-size: 1.15rem; margin-bottom: 8px; }
+  .hint-note {
+    margin-top: 20px;
+    color: var(--muted);
+    font-size: 0.82rem;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+  <h1>🎯 我愛陷阱題</h1>
+  <p class="subtitle">國小三年級・單位陷阱 — 小心讀清楚單位喔！</p>
+
+  <div class="card">
+    <span class="tag">⑤ 單位陷阱</span>
+    <p class="question" id="question">載入中…</p>
+
+    <div class="answer-row">
+      <input type="text" id="userAnswer" placeholder="在這裡輸入你的答案" autocomplete="off">
+      <button class="btn-check" id="checkBtn">對答案</button>
+    </div>
+    <div class="feedback" id="feedback"></div>
+
+    <div class="explain" id="explain">
+      <div class="ans"><span class="label">✅ 正確答案：</span><span id="answerText"></span></div>
+      <div><span class="label">⚠️ 陷阱在哪：</span><span id="trapText"></span></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-secondary" id="showBtn">看答案 / 解析</button>
+      <button class="btn-secondary" id="nextBtn">換一題 ➜</button>
+    </div>
+
+    <p class="hint-note">提示：答案只要填數字就好（例如「8」或「500」）。跑步題請照「誰比較快，快幾秒」的方式想。</p>
+  </div>
+
+<script>
+// ====== 題目產生器（和 unitTrapGenerator.mjs 同一套邏輯） ======
+const randInt = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const NAMES = ['小明','小華','小美','小傑','小安','阿寶','小雲','小柏'];
+
+// 模板 A：公尺 ↔ 公分
+function templateRibbon() {
+  const meters = randInt(2, 6);
+  const perCm = pick([20, 25, 40, 50]);
+  const totalCm = meters * 100;
+  if (totalCm % perCm !== 0) return null;
+  const answer = totalCm / perCm;
+  const name = pick(NAMES);
+  return {
+    question: `一條緞帶長 ${meters} 公尺，${name}做一個蝴蝶結要用 ${perCm} 公分。這條緞帶最多可以做幾個蝴蝶結？`,
+    answerNum: answer,
+    answerText: `${answer} 個`,
+    trap: `${meters} 公尺要先換成 ${totalCm} 公分，不能直接用 ${meters}÷${perCm}。`,
+  };
+}
+
+// 模板 B：公升 ↔ 毫升
+function templateJuice() {
+  const perBottle = pick([250, 500]);
+  const bottles = randInt(3, 6);
+  const totalMl = perBottle * bottles;
+  const drinkL = randInt(1, Math.floor(totalMl / 1000));
+  const answer = totalMl - drinkL * 1000;
+  if (answer <= 0) return null;
+  const name = pick(NAMES);
+  return {
+    question: `一瓶果汁 ${perBottle} 毫升。${name}家買了 ${bottles} 瓶，全家喝掉 ${drinkL} 公升，還剩下多少毫升？`,
+    answerNum: answer,
+    answerText: `${answer} 毫升`,
+    trap: `喝掉的量用「公升」，要換成 ${drinkL*1000} 毫升再減；剩下用「毫升」回答。`,
+  };
+}
+
+// 模板 C：分 ↔ 秒
+function templateRace() {
+  const nameA = pick(NAMES);
+  let nameB = pick(NAMES);
+  while (nameB === nameA) nameB = pick(NAMES);
+  const minA = randInt(1, 2);
+  const secA = randInt(5, 55);
+  const totalA = minA * 60 + secA;
+  let totalB = randInt(70, 175);
+  if (totalB === totalA) return null;
+  const faster = totalA < totalB ? nameA : nameB;
+  const diff = Math.abs(totalA - totalB);
+  return {
+    question: `運動會上，${nameA}跑了 ${minA} 分 ${secA} 秒，${nameB}跑了 ${totalB} 秒。誰跑得比較快？快了幾秒？`,
+    answerNum: diff,                       // 對答案時只比對「快幾秒」的數字
+    answerText: `${faster}比較快，快 ${diff} 秒`,
+    trap: `${minA} 分 ${secA} 秒要換成 ${totalA} 秒再比；時間短的才是跑得快。`,
+  };
+}
+
+const TEMPLATES = [templateRibbon, templateJuice, templateRace];
+
+function genOne() {
+  for (let i = 0; i < 50; i++) {
+    const q = pick(TEMPLATES)();
+    if (q) return q;
+  }
+  throw new Error('抽不到合格題目');
+}
+
+// ====== 頁面互動 ======
+let current = null;
+
+const $ = (id) => document.getElementById(id);
+
+function loadQuestion() {
+  current = genOne();
+  $('question').textContent = current.question;
+  $('userAnswer').value = '';
+  $('feedback').textContent = '';
+  $('feedback').className = 'feedback';
+  $('explain').classList.remove('show');
+  $('userAnswer').focus();
+}
+
+function checkAnswer() {
+  const raw = $('userAnswer').value.trim();
+  if (raw === '') {
+    $('feedback').textContent = '先輸入一個答案再對答案喔～';
+    $('feedback').className = 'feedback bad';
+    return;
+  }
+  // 從輸入中抓出數字（容許孩子多打單位，例如 "8個" "500 毫升"）
+  const num = parseInt(raw.replace(/[^0-9]/g, ''), 10);
+  if (num === current.answerNum) {
+    $('feedback').textContent = '🎉 答對了！你有看清楚單位！';
+    $('feedback').className = 'feedback ok';
+  } else {
+    $('feedback').textContent = '再想想～是不是單位沒換算？點「看答案 / 解析」看看。';
+    $('feedback').className = 'feedback bad';
+  }
+}
+
+function showExplain() {
+  $('answerText').textContent = current.answerText;
+  $('trapText').textContent = current.trap;
+  $('explain').classList.add('show');
+}
+
+$('checkBtn').addEventListener('click', checkAnswer);
+$('showBtn').addEventListener('click', showExplain);
+$('nextBtn').addEventListener('click', loadQuestion);
+$('userAnswer').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') checkAnswer();
+});
+
+loadQuestion();
+</script>
+</body>
+</html>
