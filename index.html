@@ -57,21 +57,36 @@
     margin: 0 0 22px;
     font-weight: 500;
   }
+  /* 作答區：顯示框 + 數字鍵盤 */
   .answer-row {
     display: flex;
-    gap: 10px;
-    align-items: center;
+    flex-direction: column;
+    gap: 12px;
     margin-bottom: 8px;
   }
-  input[type="text"] {
-    flex: 1;
-    font-size: 1.15rem;
-    padding: 12px 14px;
+  .answer-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 58px;
     border: 2px solid #e5e7eb;
     border-radius: 12px;
-    outline: none;
+    background: #fafafa;
+    padding: 6px 14px;
   }
-  input[type="text"]:focus { border-color: var(--accent); }
+  .answer-box .val {
+    font-size: 1.9rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+  .answer-box .val.empty { color: #c8c8c8; }
+  .answer-box .val.filled { color: var(--ink); }
+  .answer-box.answered { border-color: var(--accent); }
+  .pad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
   button {
     font-family: inherit;
     font-size: 1rem;
@@ -83,8 +98,28 @@
     transition: transform 0.05s, background 0.15s;
   }
   button:active { transform: scale(0.97); }
-  .btn-check { background: var(--accent); color: #fff; }
-  .btn-check:hover { background: var(--accent-dark); }
+  .pad button {
+    font-size: 1.5rem;
+    padding: 0;
+    height: 3.2rem;
+    background: #fff;
+    color: var(--ink);
+    border: 2px solid #eee;
+    -webkit-user-select: none; user-select: none;
+    touch-action: manipulation;
+  }
+  .pad button:hover { border-color: var(--accent); }
+  .pad button:active { background: #fff1e6; }
+  .pad button:disabled { color: #c8c8c8; background: var(--bg); cursor: default; border-color: #eee; }
+  .pad .del { color: var(--muted); font-size: 1.6rem; }
+  .pad .send {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    font-size: 1.15rem;
+  }
+  .pad .send:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+  .pad .send:disabled { background: #f5cba9; border-color: #f5cba9; color: #fff; }
   .btn-row { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
   .btn-secondary {
     background: #fff;
@@ -225,8 +260,21 @@
     <p class="question" id="question">載入中…</p>
 
     <div class="answer-row">
-      <input type="text" id="userAnswer" placeholder="在這裡輸入你的答案" autocomplete="off">
-      <button class="btn-check" id="checkBtn">對答案</button>
+      <div class="answer-box" id="answerBox"><span class="val empty" id="answerVal">?</span></div>
+      <div class="pad" id="pad">
+        <button type="button" data-d="1">1</button>
+        <button type="button" data-d="2">2</button>
+        <button type="button" data-d="3">3</button>
+        <button type="button" data-d="4">4</button>
+        <button type="button" data-d="5">5</button>
+        <button type="button" data-d="6">6</button>
+        <button type="button" data-d="7">7</button>
+        <button type="button" data-d="8">8</button>
+        <button type="button" data-d="9">9</button>
+        <button type="button" class="del" id="delBtn">⌫</button>
+        <button type="button" data-d="0">0</button>
+        <button type="button" class="send" id="checkBtn">對答案</button>
+      </div>
     </div>
     <div class="feedback" id="feedback"></div>
 
@@ -240,7 +288,7 @@
       <button class="btn-secondary" id="nextBtn">下一題 ➜</button>
     </div>
 
-    <p class="hint-note">提示：答案只要填數字就好（例如「8」或「500」）。跑步題請照「誰比較快，快幾秒」的方式想。</p>
+    <p class="hint-note">提示：用下面的鍵盤輸入數字答案（例如「8」或「500」）。跑步題請照「誰比較快，快幾秒」的方式想。</p>
   </div>
 
   <!-- 結算卡 -->
@@ -816,12 +864,34 @@ function playCelebration() {
 
 // ====== 關卡邏輯：一關 8 題 ======
 const SET_SIZE = 8;
-let current = null;      // 這一題
-let idx = 0;             // 目前第幾題（0-based）
-let answered = false;    // 這一題是否已對過答案
-let results = [];        // 每題結果：{ q, user, correct }
+let current = null;         // 這一題
+let idx = 0;                // 目前第幾題（0-based）
+let answered = false;       // 這一題是否已對過答案
+let results = [];           // 每題結果：{ q, user, correct }
+let autoAdvanceTimer = null; // 答對後自動換題的計時器
+let advancing = false;       // 前進中旗標，避免自動換題與手動按鈕重複觸發
+let inputStr = '';           // 目前用鍵盤輸入的數字字串
 
 function $(id) { return document.getElementById(id); }
+
+// 鍵盤輸入：更新顯示框
+function renderInput() {
+  const val = $('answerVal');
+  if (inputStr === '') { val.textContent = '?'; val.className = 'val empty'; }
+  else { val.textContent = inputStr; val.className = 'val filled'; }
+}
+function appendDigit(d) {
+  if (answered) return;
+  if (inputStr.length >= 6) return;         // 三年級答案不會超過六位數
+  if (inputStr === '' && Number(d) === 0) return; // 不讓開頭是 0
+  inputStr += String(d);
+  renderInput();
+}
+function backspace() {
+  if (answered) return;
+  inputStr = inputStr.slice(0, -1);
+  renderInput();
+}
 
 function renderProgress() {
   const dots = $('progressDots');
@@ -837,47 +907,54 @@ function renderProgress() {
 }
 
 function loadQuestion() {
+  if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
   current = genOne();
   answered = false;
+  inputStr = '';
+  renderInput();
+  $('answerBox').classList.remove('answered');
   $('tag').textContent = current.category;
   $('question').textContent = current.question;
-  $('userAnswer').value = '';
-  $('userAnswer').disabled = false;
   $('feedback').textContent = '';
   $('feedback').className = 'feedback';
   $('explain').classList.remove('show');
-  $('checkBtn').disabled = false;
+  setPadDisabled(false);
+  $('nextBtn').disabled = false;
   $('nextBtn').textContent = (idx === SET_SIZE - 1) ? '看成績 ➜' : '下一題 ➜';
   renderProgress();
-  $('userAnswer').focus();
+}
+
+// 鎖住／解鎖整個數字鍵盤（含「對答案」）
+function setPadDisabled(disabled) {
+  $('pad').querySelectorAll('button').forEach(b => { b.disabled = disabled; });
 }
 
 function checkAnswer() {
   if (answered) return;
-  const raw = $('userAnswer').value.trim();
-  if (raw === '') {
-    $('feedback').textContent = '先輸入一個答案再對答案喔～';
+  if (inputStr === '') {
+    $('feedback').textContent = '先用鍵盤輸入一個答案再對答案喔～';
     $('feedback').className = 'feedback bad';
     return;
   }
-  // 從輸入中抓出數字（容許孩子多打單位，例如 "8個" "500 毫升"）
-  const num = parseInt(raw.replace(/[^0-9]/g, ''), 10);
+  const num = parseInt(inputStr, 10);
   const correct = num === current.answerNum;
   answered = true;
-  $('userAnswer').disabled = true;
-  $('checkBtn').disabled = true;
-  results.push({ q: current, user: raw, correct });
+  setPadDisabled(true);
+  $('answerBox').classList.add('answered');
+  results.push({ q: current, user: inputStr, correct });
+  renderProgress();
   if (correct) {
     playSound('ding');
     $('feedback').textContent = '🎉 答對了！你有看清楚陷阱！';
     $('feedback').className = 'feedback ok';
+    $('nextBtn').disabled = true;              // 自動換題期間先鎖住，避免重複前進
+    autoAdvanceTimer = setTimeout(advance, 900); // 答對 → 播完音效、短暫停留後自動換下一題
   } else {
     playSound('eoh');
     $('feedback').textContent = '答錯了～看看下面的解析。';
     $('feedback').className = 'feedback bad';
-    showExplain();
+    showExplain();                             // 答錯 → 顯示解析，讓孩子看完自己按「下一題」
   }
-  renderProgress();
 }
 
 function showExplain() {
@@ -886,17 +963,26 @@ function showExplain() {
   $('explain').classList.add('show');
 }
 
-function nextStep() {
-  if (!answered) {           // 還沒對答案就按「下一題」→ 先幫他對答案並顯示解析，不直接跳過
-    checkAnswer();
-    return;                  // 對完答案先停一下讓孩子看解析，再按一次才前進到下一題
-  }
+// 真正前進到下一題（或結算）；用 advancing 旗標防止自動換題與手動按鈕重複觸發
+function advance() {
+  if (advancing) return;
+  advancing = true;
+  if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
   idx++;
   if (idx >= SET_SIZE) {
     showResult();
   } else {
     loadQuestion();
   }
+  advancing = false;
+}
+
+function nextStep() {
+  if (!answered) {   // 還沒對答案就按「下一題」→ 先幫他對答案（答對會自動換、答錯顯示解析）
+    checkAnswer();
+    return;
+  }
+  advance();         // 已對過答案（答錯的情況）→ 按下一題就前進
 }
 
 function showResult() {
@@ -938,17 +1024,28 @@ function showResult() {
 function startSet() {
   idx = 0;
   results = [];
+  advancing = false;
+  if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
   $('resultCard').style.display = 'none';
   $('quizCard').style.display = '';
   loadQuestion();
 }
 
+// 數字鍵盤按鈕（0–9）
+$('pad').querySelectorAll('button[data-d]').forEach(b =>
+  b.addEventListener('click', () => appendDigit(parseInt(b.dataset.d, 10))));
+$('delBtn').addEventListener('click', backspace);
 $('checkBtn').addEventListener('click', checkAnswer);
 $('showBtn').addEventListener('click', showExplain);
 $('nextBtn').addEventListener('click', nextStep);
 $('againBtn').addEventListener('click', startSet);
-$('userAnswer').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') { answered ? nextStep() : checkAnswer(); }
+
+// 也支援實體鍵盤（電腦上更好用）
+document.addEventListener('keydown', (e) => {
+  if ($('quizCard').style.display === 'none') return;   // 結算頁不吃鍵盤
+  if (e.key >= '0' && e.key <= '9') appendDigit(parseInt(e.key, 10));
+  else if (e.key === 'Backspace') { e.preventDefault(); backspace(); }
+  else if (e.key === 'Enter') { answered ? nextStep() : checkAnswer(); }
 });
 
 // 預載慶祝圖
