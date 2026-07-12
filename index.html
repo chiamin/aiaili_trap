@@ -243,17 +243,43 @@
     80%  { transform: scale(1)   translateY(-18px); opacity: 1; }
     100% { transform: scale(0.6) translateY(-36px); opacity: 0; }
   }
+
+  /* 寬螢幕／橫向（iPad 橫放等）：作答框與數字鍵盤改左右雙欄 */
+  @media (min-width: 820px) and (orientation: landscape) {
+    .card { max-width: 860px; padding: 30px 34px 32px; }
+    /* 作答區改成左右兩欄：左＝作答框，右＝數字鍵盤 */
+    .answer-row {
+      flex-direction: row;
+      align-items: stretch;
+      gap: 24px;
+    }
+    /* 左欄：作答顯示框佔一份、直向置中放大 */
+    .answer-box {
+      flex: 1;
+      min-height: 0;
+      align-self: stretch;
+    }
+    .answer-box .val { font-size: 2.6rem; }
+    /* 右欄：數字鍵盤佔一份，按鍵加高好按 */
+    .pad {
+      flex: 1;
+      gap: 10px;
+    }
+    .pad button { height: 3.8rem; }
+    /* 題目字體在寬螢幕略放大 */
+    .question { font-size: 1.45rem; }
+  }
 </style>
 </head>
 <body>
   <h1>🎯 我愛陷阱題</h1>
-  <p class="subtitle">國小三年級・一關 8 題，全對就有慶祝畫面！</p>
+  <p class="subtitle">國小三年級・答錯可以一直重試，答對 8 題就有慶祝畫面！</p>
 
   <!-- 作答卡 -->
   <div class="card" id="quizCard">
     <div class="progress">
       <div class="progress-dots" id="progressDots"></div>
-      <span class="progress-text" id="progressText">第 1 / 8 題</span>
+      <span class="progress-text" id="progressText">答對 0 / 8</span>
     </div>
 
     <span class="tag" id="tag">陷阱題</span>
@@ -289,15 +315,6 @@
     </div>
 
     <p class="hint-note">提示：用下面的鍵盤輸入數字答案（例如「8」或「500」）。分數題請照題目說的填「分子」或「分母」；星期題用 1～7 代表星期一～日。</p>
-  </div>
-
-  <!-- 結算卡 -->
-  <div class="card result" id="resultCard" style="display:none;">
-    <h2 id="resultTitle">這一關結束囉！</h2>
-    <div class="score"><span id="resultScore">0</span><small> / 8 題答對</small></div>
-    <p class="msg" id="resultMsg"></p>
-    <div class="result-list" id="resultList"></div>
-    <button class="btn-big" id="againBtn">再玩一關 ➜</button>
   </div>
 
 <!-- 慶祝 -->
@@ -1077,12 +1094,12 @@ function playCelebration() {
   setTimeout(() => celebrate.classList.remove('show', 'fade'), CELE_DURATION);
 }
 
-// ====== 關卡邏輯：一關 8 題 ======
-const SET_SIZE = 8;
-let current = null;         // 這一題
-let idx = 0;                // 目前第幾題（0-based）
-let answered = false;       // 這一題是否已對過答案
-let results = [];           // 每題結果：{ q, user, correct }
+// ====== 純練習模式：答錯可一直重試，累計答對 8 題有慶祝 ======
+// 累計制：只要一題最後答對就 +1（答錯不歸零、不扣），累積到 8 就慶祝並歸零重算
+const STREAK_GOAL = 8;       // 累計答對幾題觸發慶祝
+let current = null;          // 這一題
+let solved = false;          // 這一題是否已「答對」（答對後鎖鍵盤、等自動換題）
+let streak = 0;              // 目前累計答對題數
 let autoAdvanceTimer = null; // 答對後自動換題的計時器
 let advancing = false;       // 前進中旗標，避免自動換題與手動按鈕重複觸發
 let inputStr = '';           // 目前用鍵盤輸入的數字字串
@@ -1096,35 +1113,35 @@ function renderInput() {
   else { val.textContent = inputStr; val.className = 'val filled'; }
 }
 function appendDigit(d) {
-  if (answered) return;
+  if (solved) return;                       // 已答對、等換題時不再輸入
   if (inputStr.length >= 6) return;         // 三年級答案不會超過六位數
   if (inputStr === '' && Number(d) === 0) return; // 不讓開頭是 0
   inputStr += String(d);
   renderInput();
 }
 function backspace() {
-  if (answered) return;
+  if (solved) return;
   inputStr = inputStr.slice(0, -1);
   renderInput();
 }
 
+// 進度列：以「累計答對進度」呈現，答對幾題就亮幾顆
 function renderProgress() {
   const dots = $('progressDots');
   dots.innerHTML = '';
-  for (let i = 0; i < SET_SIZE; i++) {
+  for (let i = 0; i < STREAK_GOAL; i++) {
     const d = document.createElement('span');
     d.className = 'dot';
-    if (i < results.length) d.classList.add(results[i].correct ? 'ok' : 'bad');
-    else if (i === idx) d.classList.add('current');
+    if (i < streak) d.classList.add('ok');
     dots.appendChild(d);
   }
-  $('progressText').textContent = `第 ${idx + 1} / ${SET_SIZE} 題`;
+  $('progressText').textContent = `答對 ${streak} / ${STREAK_GOAL}`;
 }
 
 function loadQuestion() {
   if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
   current = genOne();
-  answered = false;
+  solved = false;
   inputStr = '';
   renderInput();
   $('answerBox').classList.remove('answered');
@@ -1135,7 +1152,7 @@ function loadQuestion() {
   $('explain').classList.remove('show');
   setPadDisabled(false);
   $('nextBtn').disabled = false;
-  $('nextBtn').textContent = (idx === SET_SIZE - 1) ? '看成績 ➜' : '下一題 ➜';
+  $('nextBtn').textContent = '下一題 ➜';
   renderProgress();
 }
 
@@ -1145,103 +1162,68 @@ function setPadDisabled(disabled) {
 }
 
 function checkAnswer() {
-  if (answered) return;
+  if (solved) return;                        // 已答對、等換題時忽略
   if (inputStr === '') {
     $('feedback').textContent = '先用鍵盤輸入一個答案再對答案喔～';
     $('feedback').className = 'feedback bad';
     return;
   }
   const num = parseInt(inputStr, 10);
-  const correct = num === current.answerNum;
-  answered = true;
-  setPadDisabled(true);
-  $('answerBox').classList.add('answered');
-  results.push({ q: current, user: inputStr, correct });
-  renderProgress();
-  if (correct) {
+  if (num === current.answerNum) {
+    // 答對 → 播音效、亮進度、短暫停留後自動換下一題
+    solved = true;
+    setPadDisabled(true);
+    $('answerBox').classList.add('answered');
     playSound('ding');
-    $('feedback').textContent = '🎉 答對了！你有看清楚陷阱！';
-    $('feedback').className = 'feedback ok';
-    $('nextBtn').disabled = true;              // 自動換題期間先鎖住，避免重複前進
-    autoAdvanceTimer = setTimeout(advance, 900); // 答對 → 播完音效、短暫停留後自動換下一題
+    streak++;
+    renderProgress();
+    if (streak >= STREAK_GOAL) {
+      $('feedback').textContent = '🏆 答對 8 題，太厲害了！';
+      $('feedback').className = 'feedback ok';
+      $('nextBtn').disabled = true;
+      playCelebration();
+      streak = 0;                            // 慶祝後歸零，重新累積
+      autoAdvanceTimer = setTimeout(advance, 1400);
+    } else {
+      $('feedback').textContent = '🎉 答對了！你有看清楚陷阱！';
+      $('feedback').className = 'feedback ok';
+      $('nextBtn').disabled = true;          // 自動換題期間先鎖住，避免重複前進
+      autoAdvanceTimer = setTimeout(advance, 900);
+    }
   } else {
+    // 答錯 → 播音效、顯示訊息，但「不鎖鍵盤、不跑答案」，可以改答案再試一次
+    // 累計答對制：答錯不歸零，只要這題最後答對仍會 +1
     playSound('eoh');
-    $('feedback').textContent = '答錯了～看看下面的解析。';
+    $('feedback').textContent = '答錯了～再想想看，可以再試一次！';
     $('feedback').className = 'feedback bad';
-    showExplain();                             // 答錯 → 顯示解析，讓孩子看完自己按「下一題」
   }
 }
 
+// 看答案：顯示正確答案＋解析，但「不鎖鍵盤」，看完仍可繼續作答
 function showExplain() {
   $('answerText').textContent = current.answerText;
   $('trapText').textContent = current.trap;
   $('explain').classList.add('show');
 }
 
-// 真正前進到下一題（或結算）；用 advancing 旗標防止自動換題與手動按鈕重複觸發
+// 前進到下一題；用 advancing 旗標防止自動換題與手動按鈕重複觸發
 function advance() {
   if (advancing) return;
   advancing = true;
   if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
-  idx++;
-  if (idx >= SET_SIZE) {
-    showResult();
-  } else {
-    loadQuestion();
-  }
+  loadQuestion();
   advancing = false;
 }
 
+// 按「下一題」：不管有沒有答對，直接換下一題（跳過這題；累計答對數保留不變）
 function nextStep() {
-  if (!answered) {   // 還沒對答案就按「下一題」→ 先幫他對答案（答對會自動換、答錯顯示解析）
-    checkAnswer();
-    return;
-  }
-  advance();         // 已對過答案（答錯的情況）→ 按下一題就前進
-}
-
-function showResult() {
-  const correctCount = results.filter(r => r.correct).length;
-  const allRight = correctCount === SET_SIZE;
-
-  $('quizCard').style.display = 'none';
-  $('resultCard').style.display = '';
-
-  $('resultScore').textContent = correctCount;
-  $('resultTitle').textContent = allRight ? '🏆 全部答對，太厲害了！' : '這一關結束囉！';
-  if (allRight) {
-    $('resultMsg').textContent = '八題全對，完全沒有掉進陷阱！';
-  } else if (correctCount >= 6) {
-    $('resultMsg').textContent = '很不錯！再檢查一下錯的題目就更棒了。';
-  } else if (correctCount >= 3) {
-    $('resultMsg').textContent = '繼續加油！看看下面錯在哪裡。';
-  } else {
-    $('resultMsg').textContent = '別灰心，先看懂下面的解析再挑戰一次！';
-  }
-
-  const list = $('resultList');
-  list.innerHTML = '';
-  results.forEach((r, i) => {
-    const item = document.createElement('div');
-    item.className = 'result-item ' + (r.correct ? 'ok' : 'bad');
-    const mark = r.correct ? '✅' : '❌';
-    let html = `<div class="ri-q">${mark} 第 ${i + 1} 題：${r.q.question}</div>`;
-    if (!r.correct) {
-      html += `<div class="ri-detail">你的答案：${r.user}　→　正確答案：<b>${r.q.answerText}</b><br>⚠️ ${r.q.trap}</div>`;
-    }
-    item.innerHTML = html;
-    list.appendChild(item);
-  });
-
-  if (allRight) setTimeout(playCelebration, 300);
+  advance();
 }
 
 function startSet() {
-  idx = 0;
-  results = [];
+  streak = 0;
   advancing = false;
   if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
-  $('resultCard').style.display = 'none';
   $('quizCard').style.display = '';
   loadQuestion();
 }
@@ -1253,14 +1235,12 @@ $('delBtn').addEventListener('click', backspace);
 $('checkBtn').addEventListener('click', checkAnswer);
 $('showBtn').addEventListener('click', showExplain);
 $('nextBtn').addEventListener('click', nextStep);
-$('againBtn').addEventListener('click', startSet);
 
 // 也支援實體鍵盤（電腦上更好用）
 document.addEventListener('keydown', (e) => {
-  if ($('quizCard').style.display === 'none') return;   // 結算頁不吃鍵盤
   if (e.key >= '0' && e.key <= '9') appendDigit(parseInt(e.key, 10));
   else if (e.key === 'Backspace') { e.preventDefault(); backspace(); }
-  else if (e.key === 'Enter') { answered ? nextStep() : checkAnswer(); }
+  else if (e.key === 'Enter') { solved ? advance() : checkAnswer(); }
 });
 
 // 預載慶祝圖
