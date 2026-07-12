@@ -123,10 +123,10 @@
 </head>
 <body>
   <h1>🎯 我愛陷阱題</h1>
-  <p class="subtitle">國小三年級・單位陷阱 — 小心讀清楚單位喔！</p>
+  <p class="subtitle">國小三年級・語意／條件／單位陷阱 — 小心讀清楚題目喔！</p>
 
   <div class="card">
-    <span class="tag">⑤ 單位陷阱</span>
+    <span class="tag" id="tag">陷阱題</span>
     <p class="question" id="question">載入中…</p>
 
     <div class="answer-row">
@@ -149,12 +149,184 @@
   </div>
 
 <script>
-// ====== 題目產生器（和 unitTrapGenerator.mjs 同一套邏輯） ======
+// ====== 題目產生器 ======
+// 三大類陷阱：①語意、④多餘／不足條件、⑤單位（同 grade3_trap_questions.md 的分類）
 const randInt = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const NAMES = ['小明','小華','小美','小傑','小安','阿寶','小雲','小柏'];
+const CAT_SEMANTIC = '① 語意陷阱';
+const CAT_CONDITION = '④ 多餘／不足條件';
+const CAT_UNIT = '⑤ 單位陷阱';
+const CAT_WORD = '⑥ 動腦應用題';
 
-// 模板 A：公尺 ↔ 公分
+function twoNames() {
+  const a = pick(NAMES);
+  let b = pick(NAMES);
+  while (b === a) b = pick(NAMES);
+  return [a, b];
+}
+
+// ---------- ① 語意陷阱 ----------
+
+// ①-1：「比…多／比…少」方向搞反
+function templateCompareSave() {
+  const [nameA, nameB] = twoNames();
+  const base = randInt(15, 45) * 10;
+  const diff = randInt(3, 12) * 10;
+  if (base - diff <= 0) return null;
+  if (Math.random() < 0.5) {
+    return {
+      category: CAT_SEMANTIC,
+      question: `${nameA}存了 ${base} 元，${nameA}比${nameB}多存 ${diff} 元。請問${nameB}存了多少元？`,
+      answerNum: base - diff,
+      answerText: `${base - diff} 元`,
+      trap: `看到「多」不能直覺就加！多的是${nameA}，表示${nameB}比較少，要用 ${base}−${diff}＝${base - diff}。`,
+    };
+  }
+  return {
+    category: CAT_SEMANTIC,
+    question: `${nameA}存了 ${base} 元，${nameA}比${nameB}少存 ${diff} 元。請問${nameB}存了多少元？`,
+    answerNum: base + diff,
+    answerText: `${base + diff} 元`,
+    trap: `看到「少」不能直覺就減！少的是${nameA}，表示${nameB}比較多，要用 ${base}＋${diff}＝${base + diff}。`,
+  };
+}
+
+// ①-2：排隊——從前數第 a、從後數第 b，總共幾人（自己被數兩次）
+function templateQueueTotal() {
+  const name = pick(NAMES);
+  const front = randInt(4, 12);
+  const back = randInt(3, 10);
+  const total = front + back - 1;
+  return {
+    category: CAT_SEMANTIC,
+    question: `${name}在排隊買票，從前面數${name}是第 ${front} 個，從後面數是第 ${back} 個。這一排總共有幾個人？`,
+    answerNum: total,
+    answerText: `${total} 人`,
+    trap: `直接 ${front}＋${back}＝${front + back} 是錯的！${name}自己被數了兩次，要再減 1：${front}＋${back}−1＝${total}。`,
+  };
+}
+
+// ①-3：排隊反向——總共 N 人，從前面數第 a，問從後面數第幾
+function templateQueuePosition() {
+  const name = pick(NAMES);
+  const total = randInt(12, 25);
+  const front = randInt(3, total - 2);
+  const pos = total - front + 1;
+  return {
+    category: CAT_SEMANTIC,
+    question: `一排總共有 ${total} 個人，${name}從前面數是第 ${front} 個。請問${name}從後面數是第幾個？`,
+    answerNum: pos,
+    answerText: `第 ${pos} 個`,
+    trap: `不是 ${total}−${front}＝${total - front}！${name}自己也要算進去，${total}−${front}＋1＝${pos}。`,
+  };
+}
+
+// ①-4：「增加到」vs「增加了」／「減少到」vs「減少了」
+function templateIncreaseTo() {
+  const animal = pick(['雞', '鴨', '兔子', '羊']);
+  if (Math.random() < 0.5) {
+    const before = randInt(15, 60);
+    const added = randInt(8, 30);
+    const after = before + added;
+    return {
+      category: CAT_SEMANTIC,
+      question: `農場裡原來有 ${before} 隻${animal}，後來增加到 ${after} 隻。請問增加了幾隻？`,
+      answerNum: added,
+      answerText: `${added} 隻`,
+      trap: `「增加到 ${after} 隻」是說現在總共 ${after} 隻，不是增加了 ${after} 隻！增加的是 ${after}−${before}＝${added} 隻。`,
+    };
+  }
+  const after = randInt(15, 50);
+  const dec = randInt(8, 30);
+  const before = after + dec;
+  return {
+    category: CAT_SEMANTIC,
+    question: `農場裡原來有 ${before} 隻${animal}，後來減少到 ${after} 隻。請問減少了幾隻？`,
+    answerNum: dec,
+    answerText: `${dec} 隻`,
+    trap: `「減少到 ${after} 隻」是說剩下 ${after} 隻，不是減少了 ${after} 隻！減少的是 ${before}−${after}＝${dec} 隻。`,
+  };
+}
+
+// ---------- ④ 多餘／不足條件 ----------
+
+// ④-1：文具店——塞入沒買的東西的價錢（多餘條件）
+function templateShopExtra() {
+  const name = pick(NAMES);
+  const pPencil = randInt(5, 9);
+  const pEraser = randInt(10, 15);
+  const pPen = randInt(12, 18);
+  const items = [['鉛筆', '枝', pPencil], ['橡皮擦', '個', pEraser], ['原子筆', '枝', pPen]];
+  const [itemName, unit, price] = items[randInt(0, 2)];
+  const count = randInt(2, 5);
+  const cost = count * price;
+  if (cost >= 100) return null;
+  const change = 100 - cost;
+  return {
+    category: CAT_CONDITION,
+    question: `文具店裡鉛筆一枝 ${pPencil} 元、橡皮擦一個 ${pEraser} 元、原子筆一枝 ${pPen} 元。${name}買了 ${count} ${unit}${itemName}，付了 100 元，應該找回多少元？`,
+    answerNum: change,
+    answerText: `${change} 元`,
+    trap: `${name}只買了${itemName}，另外兩種的價錢是多餘條件，不要用！${count}×${price}＝${cost}，100−${cost}＝${change}。`,
+  };
+}
+
+// ④-2：遊覽車——別漏算老師＋餘數要「進位」
+function templateBusCeil() {
+  const cap = pick([40, 45, 50]);
+  const boys = randInt(50, 80);
+  const girls = randInt(40, 70);
+  const teachers = randInt(4, 8);
+  const total = boys + girls + teachers;
+  if (total % cap === 0) return null;
+  const cars = Math.floor(total / cap) + 1;
+  return {
+    category: CAT_CONDITION,
+    question: `一輛遊覽車可以載 ${cap} 人。三年級有男生 ${boys} 人、女生 ${girls} 人，還有 ${teachers} 位老師。全部的人都要坐遊覽車，至少需要幾輛車？`,
+    answerNum: cars,
+    answerText: `${cars} 輛`,
+    trap: `兩層陷阱：(1) 別漏算老師，總共 ${boys}＋${girls}＋${teachers}＝${total} 人；(2) ${total}÷${cap}＝${Math.floor(total / cap)} 輛餘 ${total % cap} 人，剩下的人也要坐車，所以要進位成 ${cars} 輛。`,
+  };
+}
+
+// ④-3：裝禮盒——餘數要「捨去」（和坐車相反）
+function templateBoxFloor() {
+  const per = pick([6, 8, 9, 12]);
+  const total = randInt(40, 95);
+  if (total % per === 0) return null;
+  const boxes = Math.floor(total / per);
+  const thing = pick(['蘋果', '橘子', '雞蛋', '餅乾']);
+  return {
+    category: CAT_CONDITION,
+    question: `一個禮盒要裝滿 ${per} 個${thing}才能算一盒。現在有 ${total} 個${thing}，最多可以裝滿幾盒？`,
+    answerNum: boxes,
+    answerText: `${boxes} 盒`,
+    trap: `${total}÷${per}＝${boxes} 盒餘 ${total % per} 個，剩下的裝不滿一盒，不能算！這題餘數要「捨去」，和坐遊覽車要「進位」剛好相反。`,
+  };
+}
+
+// ④-4：分糖果——年齡是多餘條件＋人數要數清楚（含自己）
+function templateCandyExtra() {
+  const name = pick(NAMES);
+  const bros = randInt(1, 3);
+  const sis = randInt(1, 2);
+  const people = 1 + bros + sis;
+  const per = randInt(6, 12);
+  const candies = people * per;
+  const age = randInt(8, 10);
+  return {
+    category: CAT_CONDITION,
+    question: `${name}今年 ${age} 歲，他有 ${bros} 個哥哥、${sis} 個姐姐。媽媽買了 ${candies} 顆糖果，要平分給${name}和他的兄弟姐妹（爸爸媽媽不吃）。每個人分到幾顆？`,
+    answerNum: per,
+    answerText: `每人 ${per} 顆`,
+    trap: `「${age} 歲」是多餘條件，用不到！分糖的人數要數清楚：${name}自己＋${bros} 個哥哥＋${sis} 個姐姐＝${people} 人，${candies}÷${people}＝${per} 顆。`,
+  };
+}
+
+// ---------- ⑤ 單位陷阱 ----------
+
+// ⑤-1：公尺 ↔ 公分
 function templateRibbon() {
   const meters = randInt(2, 6);
   const perCm = pick([20, 25, 40, 50]);
@@ -163,6 +335,7 @@ function templateRibbon() {
   const answer = totalCm / perCm;
   const name = pick(NAMES);
   return {
+    category: CAT_UNIT,
     question: `一條緞帶長 ${meters} 公尺，${name}做一個蝴蝶結要用 ${perCm} 公分。這條緞帶最多可以做幾個蝴蝶結？`,
     answerNum: answer,
     answerText: `${answer} 個`,
@@ -170,7 +343,7 @@ function templateRibbon() {
   };
 }
 
-// 模板 B：公升 ↔ 毫升
+// ⑤-2：公升 ↔ 毫升
 function templateJuice() {
   const perBottle = pick([250, 500]);
   const bottles = randInt(3, 6);
@@ -180,26 +353,26 @@ function templateJuice() {
   if (answer <= 0) return null;
   const name = pick(NAMES);
   return {
+    category: CAT_UNIT,
     question: `一瓶果汁 ${perBottle} 毫升。${name}家買了 ${bottles} 瓶，全家喝掉 ${drinkL} 公升，還剩下多少毫升？`,
     answerNum: answer,
     answerText: `${answer} 毫升`,
-    trap: `喝掉的量用「公升」，要換成 ${drinkL*1000} 毫升再減；剩下用「毫升」回答。`,
+    trap: `喝掉的量用「公升」，要換成 ${drinkL * 1000} 毫升再減；剩下用「毫升」回答。`,
   };
 }
 
-// 模板 C：分 ↔ 秒
+// ⑤-3：分 ↔ 秒（＋時間短才是快）
 function templateRace() {
-  const nameA = pick(NAMES);
-  let nameB = pick(NAMES);
-  while (nameB === nameA) nameB = pick(NAMES);
+  const [nameA, nameB] = twoNames();
   const minA = randInt(1, 2);
   const secA = randInt(5, 55);
   const totalA = minA * 60 + secA;
-  let totalB = randInt(70, 175);
+  const totalB = randInt(70, 175);
   if (totalB === totalA) return null;
   const faster = totalA < totalB ? nameA : nameB;
   const diff = Math.abs(totalA - totalB);
   return {
+    category: CAT_UNIT,
     question: `運動會上，${nameA}跑了 ${minA} 分 ${secA} 秒，${nameB}跑了 ${totalB} 秒。誰跑得比較快？快了幾秒？`,
     answerNum: diff,                       // 對答案時只比對「快幾秒」的數字
     answerText: `${faster}比較快，快 ${diff} 秒`,
@@ -207,7 +380,254 @@ function templateRace() {
   };
 }
 
-const TEMPLATES = [templateRibbon, templateJuice, templateRace];
+// ⑤-4：公斤 ↔ 公克
+function templateFlour() {
+  const kg = randInt(1, 3);
+  const used = randInt(2, kg * 10 - 1) * 100;
+  const left = kg * 1000 - used;
+  const name = pick(NAMES);
+  return {
+    category: CAT_UNIT,
+    question: `一包麵粉重 ${kg} 公斤，${name}的媽媽做蛋糕用掉 ${used} 公克，還剩下多少公克？`,
+    answerNum: left,
+    answerText: `${left} 公克`,
+    trap: `${kg} 公斤要先換成 ${kg * 1000} 公克再減：${kg * 1000}−${used}＝${left}，不能直接拿 ${kg} 去減。`,
+  };
+}
+
+// ⑤-5：公里 ↔ 公尺
+function templateWalk() {
+  const km = randInt(1, 3);
+  const walked = randInt(3, km * 10 - 1) * 100;
+  const left = km * 1000 - walked;
+  const name = pick(NAMES);
+  return {
+    category: CAT_UNIT,
+    question: `${name}家到學校有 ${km} 公里，${name}已經走了 ${walked} 公尺，還要再走多少公尺才會到？`,
+    answerNum: left,
+    answerText: `${left} 公尺`,
+    trap: `${km} 公里＝${km * 1000} 公尺，要先換算再減：${km * 1000}−${walked}＝${left}。`,
+  };
+}
+
+// ⑤-6：時 ↔ 分
+function templateMovie() {
+  const hours = randInt(1, 2);
+  const totalMin = hours * 60;
+  const played = randInt(Math.floor(totalMin * 0.4), totalMin - 10);
+  const left = totalMin - played;
+  return {
+    category: CAT_UNIT,
+    question: `一部電影全長 ${hours} 小時，已經播了 ${played} 分鐘，還剩下幾分鐘才播完？`,
+    answerNum: left,
+    answerText: `${left} 分鐘`,
+    trap: `${hours} 小時＝${totalMin} 分鐘，要先換算：${totalMin}−${played}＝${left} 分鐘。`,
+  };
+}
+
+// ---------- ⑥ 動腦應用題（不一定有陷阱，但要讀懂題意、想一下才會做） ----------
+
+// ⑥-1：年齡差不變——今年差幾歲，幾年後還是差幾歲
+function templateAgeGap() {
+  const [nameA, nameB] = twoNames();
+  const gap = randInt(3, 8);
+  const ageA = randInt(9, 13);
+  const ageB = ageA + gap;
+  const years = randInt(3, 8);
+  return {
+    category: CAT_WORD,
+    question: `今年${nameB}比${nameA}大 ${gap} 歲。再過 ${years} 年，${nameB}會比${nameA}大幾歲？`,
+    answerNum: gap,
+    answerText: `${gap} 歲`,
+    trap: `兩個人每年都各長 1 歲，年齡差永遠不變，所以還是 ${gap} 歲，不是 ${gap}＋${years}。`,
+  };
+}
+
+// ⑥-2：雞兔同籠（頭腳問題，三年級用湊的）
+function templateChickenRabbit() {
+  const rabbits = randInt(2, 6);
+  const chickens = randInt(2, 8);
+  const heads = rabbits + chickens;
+  const legs = rabbits * 4 + chickens * 2;
+  return {
+    category: CAT_WORD,
+    question: `農場裡有雞和兔子，數頭一共 ${heads} 個，數腳一共 ${legs} 隻。請問有幾隻兔子？`,
+    answerNum: rabbits,
+    answerText: `${rabbits} 隻兔子`,
+    trap: `先假設 ${heads} 隻全是雞，共 ${heads * 2} 隻腳；還差 ${legs - heads * 2} 隻腳，每把一隻雞換成兔子多 2 隻腳，${legs - heads * 2}÷2＝${rabbits} 隻兔子。`,
+  };
+}
+
+// ⑥-3：過河問題——每次載幾個，要幾趟
+function templateBoatTrips() {
+  const perTrip = randInt(3, 6);
+  const trips = randInt(3, 6);
+  const extra = randInt(1, perTrip - 1);
+  const total = perTrip * (trips - 1) + extra;
+  return {
+    category: CAT_WORD,
+    question: `一艘小船每次最多載 ${perTrip} 個人過河。有 ${total} 個人要過河，至少要載幾趟才能全部過去？`,
+    answerNum: trips,
+    answerText: `${trips} 趟`,
+    trap: `${total}÷${perTrip}＝${trips - 1} 趟餘 ${extra} 人，剩下的人還要再一趟，所以要進位成 ${trips} 趟。`,
+  };
+}
+
+// ⑥-4：先買再送——中間量問題（兩步驟）
+function templateGiveAway() {
+  const name = pick(NAMES);
+  const packs = randInt(3, 6);
+  const perPack = pick([4, 5, 6, 8]);
+  const gave = randInt(2, 6);
+  const total = packs * perPack;
+  const left = total - gave;
+  const thing = pick(['貼紙', '彈珠', '糖果', '卡片']);
+  return {
+    category: CAT_WORD,
+    question: `${name}買了 ${packs} 包${thing}，每包 ${perPack} 個，送給同學 ${gave} 個之後，自己還剩幾個？`,
+    answerNum: left,
+    answerText: `${left} 個`,
+    trap: `要先算出總共有幾個（${packs}×${perPack}＝${total}），再減掉送出的 ${gave} 個：${total}−${gave}＝${left}。`,
+  };
+}
+
+// ⑥-5：平分後每人再拿——兩步驟
+function templateSharePlus() {
+  const people = randInt(3, 6);
+  const per = randInt(4, 9);
+  const total = people * per;
+  const thing = pick(['餅乾', '水餃', '雞塊', '草莓']);
+  const name = pick(NAMES);
+  return {
+    category: CAT_WORD,
+    question: `盤子裡有 ${total} 個${thing}，${name}和另外 ${people - 1} 個朋友要平分，每個人可以分到幾個？`,
+    answerNum: per,
+    answerText: `${per} 個`,
+    trap: `分的人數要把${name}自己也算進去，一共 ${people} 人（不是 ${people - 1} 人），${total}÷${people}＝${per} 個。`,
+  };
+}
+
+// ⑥-6：倍數比較——是別人的幾倍
+function templateTimesAs() {
+  const [nameA, nameB] = twoNames();
+  const times = randInt(2, 5);
+  const b = randInt(4, 12);
+  const a = b * times;
+  const thing = pick(['張貼紙', '顆彈珠', '本書', '元']);
+  return {
+    category: CAT_WORD,
+    question: `${nameA}有 ${a} ${thing}，${nameB}有 ${b} ${thing}。${nameA}的數量是${nameB}的幾倍？`,
+    answerNum: times,
+    answerText: `${times} 倍`,
+    trap: `「是幾倍」要用大的除以小的：${a}÷${b}＝${times} 倍。`,
+  };
+}
+
+// ⑥-7：每天固定量的累加，再比對總量夠不夠
+function templateReadDays() {
+  const name = pick(NAMES);
+  const perDay = randInt(6, 15);
+  const days = randInt(4, 7);
+  const total = perDay * days;
+  const bookPages = total + randInt(1, 20);
+  const leftPages = bookPages - total;
+  return {
+    category: CAT_WORD,
+    question: `${name}每天讀 ${perDay} 頁故事書，連續讀了 ${days} 天。這本書一共有 ${bookPages} 頁，他還有幾頁沒讀完？`,
+    answerNum: leftPages,
+    answerText: `還有 ${leftPages} 頁`,
+    trap: `先算讀了幾頁：${perDay}×${days}＝${total} 頁；再用全書減掉：${bookPages}−${total}＝${leftPages} 頁。`,
+  };
+}
+
+// ⑥-8：找規律填下一個（等差）
+function templatePattern() {
+  const start = randInt(2, 9);
+  const step = randInt(2, 6);
+  const seq = [start, start + step, start + 2 * step, start + 3 * step];
+  const next = start + 4 * step;
+  return {
+    category: CAT_WORD,
+    question: `照規律排下去：${seq.join('、')}、□。請問□是多少？`,
+    answerNum: next,
+    answerText: `${next}`,
+    trap: `每個數字都比前一個多 ${step}（${seq[1]}−${seq[0]}＝${step}），所以□＝${seq[3]}＋${step}＝${next}。`,
+  };
+}
+
+// ⑥-9：找規律填下一個（等比／翻倍）
+function templatePatternMul() {
+  const start = pick([1, 2, 3]);
+  const seq = [start, start * 2, start * 4, start * 8];
+  const next = start * 16;
+  return {
+    category: CAT_WORD,
+    question: `照規律排下去：${seq.join('、')}、□。請問□是多少？`,
+    answerNum: next,
+    answerText: `${next}`,
+    trap: `每個數字都是前一個的 2 倍（${seq[1]}÷${seq[0]}＝2），所以□＝${seq[3]}×2＝${next}。`,
+  };
+}
+
+// ⑥-10：逆推——原本有多少（先加回再減／先加後問原本）
+function templateReverse() {
+  const name = pick(NAMES);
+  const spent = randInt(15, 60);
+  const left = randInt(10, 40);
+  const original = spent + left;
+  return {
+    category: CAT_WORD,
+    question: `${name}去買文具，花掉 ${spent} 元後還剩下 ${left} 元。請問${name}原本有多少錢？`,
+    answerNum: original,
+    answerText: `${original} 元`,
+    trap: `原本的錢＝花掉的＋剩下的，要用加法把花掉的加回去：${spent}＋${left}＝${original}。`,
+  };
+}
+
+// ⑥-11：週 ↔ 天
+function templateWeeks() {
+  const weeks = randInt(2, 6);
+  const extraDays = randInt(1, 6);
+  const total = weeks * 7 + extraDays;
+  return {
+    category: CAT_WORD,
+    question: `暑假作業要寫 ${total} 天。${total} 天等於 ${weeks} 個星期又幾天？`,
+    answerNum: extraDays,
+    answerText: `${weeks} 個星期又 ${extraDays} 天`,
+    trap: `1 個星期＝7 天。${total}÷7＝${weeks} 星期餘 ${extraDays} 天，餘數就是多出來的天數。`,
+  };
+}
+
+// ⑥-12：時刻計算——經過多久（同一天，時＋分）
+function templateElapsed() {
+  const startH = randInt(1, 6);
+  const durH = randInt(1, 3);
+  const durM = pick([10, 15, 20, 30, 40, 45]);
+  const endMinTotal = startH * 60 + durH * 60 + durM;
+  const endH = Math.floor(endMinTotal / 60);
+  const endM = endMinTotal % 60;
+  if (endH > 11) return null;
+  return {
+    category: CAT_WORD,
+    question: `電影從 ${startH} 點開始，演到 ${endH} 點 ${endM === 0 ? '整' : endM + ' 分'} 結束。這部電影一共演了幾分鐘？`,
+    answerNum: durH * 60 + durM,
+    answerText: `${durH * 60 + durM} 分鐘（${durH} 小時 ${durM} 分）`,
+    trap: `從 ${startH} 點到 ${endH} 點是 ${durH} 小時＝${durH * 60} 分，再加上 ${durM} 分，共 ${durH * 60 + durM} 分鐘。`,
+  };
+}
+
+const TEMPLATES = [
+  // ① 語意陷阱
+  templateCompareSave, templateQueueTotal, templateQueuePosition, templateIncreaseTo,
+  // ④ 多餘／不足條件
+  templateShopExtra, templateBusCeil, templateBoxFloor, templateCandyExtra,
+  // ⑤ 單位陷阱
+  templateRibbon, templateJuice, templateRace, templateFlour, templateWalk, templateMovie,
+  // ⑥ 動腦應用題
+  templateAgeGap, templateChickenRabbit, templateBoatTrips, templateGiveAway,
+  templateSharePlus, templateTimesAs, templateReadDays, templatePattern,
+  templatePatternMul, templateReverse, templateWeeks, templateElapsed,
+];
 
 function genOne() {
   for (let i = 0; i < 50; i++) {
@@ -224,6 +644,7 @@ const $ = (id) => document.getElementById(id);
 
 function loadQuestion() {
   current = genOne();
+  $('tag').textContent = current.category;
   $('question').textContent = current.question;
   $('userAnswer').value = '';
   $('feedback').textContent = '';
@@ -242,10 +663,10 @@ function checkAnswer() {
   // 從輸入中抓出數字（容許孩子多打單位，例如 "8個" "500 毫升"）
   const num = parseInt(raw.replace(/[^0-9]/g, ''), 10);
   if (num === current.answerNum) {
-    $('feedback').textContent = '🎉 答對了！你有看清楚單位！';
+    $('feedback').textContent = '🎉 答對了！你有看清楚陷阱！';
     $('feedback').className = 'feedback ok';
   } else {
-    $('feedback').textContent = '再想想～是不是單位沒換算？點「看答案 / 解析」看看。';
+    $('feedback').textContent = '再想想～是不是掉進陷阱了？點「看答案 / 解析」看看。';
     $('feedback').className = 'feedback bad';
   }
 }
