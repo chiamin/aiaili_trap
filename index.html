@@ -288,7 +288,7 @@
       <button class="btn-secondary" id="nextBtn">下一題 ➜</button>
     </div>
 
-    <p class="hint-note">提示：用下面的鍵盤輸入數字答案（例如「8」或「500」）。跑步題請照「誰比較快，快幾秒」的方式想。</p>
+    <p class="hint-note">提示：用下面的鍵盤輸入數字答案（例如「8」或「500」）。分數題請照題目說的填「分子」或「分母」；星期題用 1～7 代表星期一～日。</p>
   </div>
 
   <!-- 結算卡 -->
@@ -316,6 +316,10 @@ const CAT_SEMANTIC = '① 語意陷阱';
 const CAT_CONDITION = '④ 多餘／不足條件';
 const CAT_UNIT = '⑤ 單位陷阱';
 const CAT_WORD = '⑥ 動腦應用題';
+const CAT_FRAC = '⑦ 分數';
+const CAT_DECIMAL = '⑧ 一位小數';
+const CAT_AREA = '⑨ 面積／周長';
+const CAT_DATE = '⑩ 日期';
 
 function twoNames() {
   const a = pick(NAMES);
@@ -774,6 +778,209 @@ function templateElapsed() {
   };
 }
 
+// ---------- ⑦ 分數（三年級：真分數比大小、同分母加減） ----------
+// 答案用「整數」表達：比大小→答較大的『分子』；同分母加減→答結果的『分子』（同分母下分子最能代表大小）
+
+// ⑦-1：同分母比大小——分母相同，分子大的才大
+function templateFracCompareSameDen() {
+  const den = pick([4, 5, 6, 8, 10]);
+  let a = randInt(1, den - 1);
+  let b = randInt(1, den - 1);
+  while (b === a) b = randInt(1, den - 1);
+  const bigger = Math.max(a, b);
+  return {
+    category: CAT_FRAC,
+    question: `${den} 分之 ${a} 和 ${den} 分之 ${b}，哪一個比較大？請回答比較大的那個的「分子」（上面的數字）。`,
+    answerNum: bigger,
+    answerText: `${den} 分之 ${bigger} 比較大（分子是 ${bigger}）`,
+    trap: `分母都是 ${den}（分成一樣多份），這時候分子大的才大，所以 ${den} 分之 ${bigger} 比較大，分子是 ${bigger}。`,
+  };
+}
+
+// ⑦-2：同分子比大小——分子相同，分母大的反而小（陷阱）
+function templateFracCompareSameNum() {
+  const num = randInt(1, 3);
+  let d1 = pick([4, 5, 6, 8]);
+  let d2 = pick([9, 10, 12]);
+  // 確保是真分數
+  const bigDen = Math.max(d1, d2), smallDen = Math.min(d1, d2);
+  // 分子相同，分母小的比較大 → 較大的分母是 smallDen
+  return {
+    category: CAT_FRAC,
+    question: `${smallDen} 分之 ${num} 和 ${bigDen} 分之 ${num}，哪一個比較大？請回答比較大的那個的「分母」（下面的數字）。`,
+    answerNum: smallDen,
+    answerText: `${smallDen} 分之 ${num} 比較大（分母是 ${smallDen}）`,
+    trap: `陷阱！分子一樣是 ${num} 時，分母越大表示切得越細、每份越小。所以分母小的 ${smallDen} 分之 ${num} 反而比較大，不是分母大的那個。`,
+  };
+}
+
+// ⑦-3：同分母加法——分母不變，只加分子
+function templateFracAdd() {
+  const den = pick([5, 6, 7, 8, 9, 10]);
+  const a = randInt(1, den - 2);
+  const b = randInt(1, den - 1 - a);
+  const sum = a + b;
+  return {
+    category: CAT_FRAC,
+    question: `${den} 分之 ${a} 加 ${den} 分之 ${b}，等於 ${den} 分之幾？請回答答案的「分子」。`,
+    answerNum: sum,
+    answerText: `${den} 分之 ${sum}（分子是 ${sum}）`,
+    trap: `同分母相加，分母 ${den} 不變，只把分子相加：${a}＋${b}＝${sum}，答案是 ${den} 分之 ${sum}。分母不要也加起來！`,
+  };
+}
+
+// ⑦-4：同分母減法——分母不變，只減分子
+function templateFracSub() {
+  const den = pick([5, 6, 7, 8, 9, 10]);
+  const a = randInt(2, den - 1);
+  const b = randInt(1, a - 1);
+  const diff = a - b;
+  return {
+    category: CAT_FRAC,
+    question: `${den} 分之 ${a} 減 ${den} 分之 ${b}，等於 ${den} 分之幾？請回答答案的「分子」。`,
+    answerNum: diff,
+    answerText: `${den} 分之 ${diff}（分子是 ${diff}）`,
+    trap: `同分母相減，分母 ${den} 不變，只把分子相減：${a}−${b}＝${diff}，答案是 ${den} 分之 ${diff}。`,
+  };
+}
+
+// ---------- ⑧ 一位小數（三下：小數加減、小數語意） ----------
+// 為了讓數字鍵盤能輸入，答案設計成「用十分之幾表達」或「整數元／角」等單一整數
+
+// ⑧-1：小數的語意——0.5 不是 5（幾分之幾）
+function templateDecimalMeaning() {
+  const tenths = randInt(1, 9);
+  return {
+    category: CAT_DECIMAL,
+    question: `小數 0.${tenths} 表示十分之幾？請回答分子（十分之□的□）。`,
+    answerNum: tenths,
+    answerText: `十分之 ${tenths}（0.${tenths}）`,
+    trap: `0.${tenths} 是把 1 平分成 10 份，取其中 ${tenths} 份，也就是「十分之 ${tenths}」，不是 ${tenths} 個 1。小數點後第一位是「十分位」。`,
+  };
+}
+
+// ⑧-2：一位小數加法——結果剛好進位成整數或帶小數，答案用「十分之幾」表達
+function templateDecimalAdd() {
+  const a = randInt(1, 9);          // 0.a
+  const bb = randInt(1, 9);         // 0.bb
+  const sumTenths = a + bb;         // 以十分之表達的總和（10~18 時代表 1.x）
+  return {
+    category: CAT_DECIMAL,
+    question: `0.${a} 加 0.${bb} 等於多少？因為答案是小數，請用「十分之幾」回答（例如 1.2 就回答 12）。`,
+    answerNum: sumTenths,
+    answerText: `${(sumTenths / 10).toFixed(1)}（也就是十分之 ${sumTenths}）`,
+    trap: `0.${a}＝十分之 ${a}、0.${bb}＝十分之 ${bb}，相加是十分之 ${sumTenths}，也就是 ${(sumTenths / 10).toFixed(1)}。小數相加時小數點要對齊，別把 ${a}＋${bb} 當整數個位加。`,
+  };
+}
+
+// ⑧-3：元角——1 元＝10 角，小數與錢幣（塊/角）
+function templateDecimalMoney() {
+  const yuan = randInt(1, 5);
+  const jiao = randInt(1, 9);
+  const totalJiao = yuan * 10 + jiao;
+  return {
+    category: CAT_DECIMAL,
+    question: `${yuan} 元又 ${jiao} 角，一共是幾角？（1 元＝10 角）`,
+    answerNum: totalJiao,
+    answerText: `${totalJiao} 角（也就是 ${yuan}.${jiao} 元）`,
+    trap: `1 元要換成 10 角。${yuan} 元＝${yuan * 10} 角，再加 ${jiao} 角，共 ${totalJiao} 角。寫成小數就是 ${yuan}.${jiao} 元。`,
+  };
+}
+
+// ---------- ⑨ 面積／周長（三年級：單位方格數面積、長方形周長） ----------
+
+// ⑨-1：長方形面積（用單位方格／長×寬）
+function templateRectArea() {
+  const w = randInt(2, 9);
+  const h = randInt(2, 9);
+  if (w === h) return null;      // 避免變成正方形另做
+  const area = w * h;
+  return {
+    category: CAT_AREA,
+    question: `一個長方形，長 ${w} 公分、寬 ${h} 公分。它的面積是幾平方公分？`,
+    answerNum: area,
+    answerText: `${area} 平方公分`,
+    trap: `面積是「長 × 寬」＝${w}×${h}＝${area} 平方公分（也就是排滿幾個 1 平方公分的方格）。別和周長搞混：面積用乘的，周長才是把四邊加起來。`,
+  };
+}
+
+// ⑨-2：長方形周長——四邊加起來（陷阱：容易只加長＋寬）
+function templateRectPerimeter() {
+  const w = randInt(3, 12);
+  const h = randInt(2, 10);
+  if (w === h) return null;
+  const peri = (w + h) * 2;
+  return {
+    category: CAT_AREA,
+    question: `一個長方形，長 ${w} 公分、寬 ${h} 公分。繞它一圈（周長）一共是幾公分？`,
+    answerNum: peri,
+    answerText: `${peri} 公分`,
+    trap: `長方形有兩條長、兩條寬，周長＝(${w}＋${h})×2＝${peri} 公分。陷阱：只算 ${w}＋${h}＝${w + h} 就少算了另一組兩條邊。`,
+  };
+}
+
+// ⑨-3：正方形周長——一邊 ×4
+function templateSquarePerimeter() {
+  const side = randInt(3, 15);
+  const peri = side * 4;
+  return {
+    category: CAT_AREA,
+    question: `一個正方形，每一邊都是 ${side} 公分。它的周長是幾公分？`,
+    answerNum: peri,
+    answerText: `${peri} 公分`,
+    trap: `正方形四邊一樣長，周長＝${side}×4＝${peri} 公分，不是 ${side}×2。`,
+  };
+}
+
+// ---------- ⑩ 日期（跨星期／跨月，算頭算尾的陷阱） ----------
+
+// ⑩-1：從某日到某日共幾天（含頭含尾，容易少算 1）
+function templateDateInclusive() {
+  const start = randInt(3, 15);
+  const span = randInt(4, 12);
+  const end = start + span;
+  const days = end - start + 1;   // 含頭含尾
+  return {
+    category: CAT_DATE,
+    question: `暑假活動從 7 月 ${start} 日開始，到 7 月 ${end} 日結束（頭尾兩天都算）。一共有幾天？`,
+    answerNum: days,
+    answerText: `${days} 天`,
+    trap: `陷阱：不是 ${end}−${start}＝${end - start}！開始那天也要算進去，${end}−${start}＋1＝${days} 天（頭尾都含）。`,
+  };
+}
+
+// ⑩-2：某日的幾天後是幾號（跨月，別忘了當月天數）
+function templateDateAcrossMonth() {
+  const monthDays = pick([[4, 30], [6, 30], [9, 30], [11, 30], [3, 31], [5, 31], [7, 31], [8, 31]]);
+  const [month, dim] = monthDays;
+  const start = randInt(dim - 4, dim - 1);   // 靠近月底（dim-4 ~ dim-1）
+  const end = randInt(1, 5);                 // 下個月的 1~5 號
+  const add = (dim - start) + end;           // 反推要過幾天，保證真的跨月且日≥1
+  return {
+    category: CAT_DATE,
+    question: `${month} 月有 ${dim} 天。從 ${month} 月 ${start} 日開始，過了 ${add} 天之後是幾月幾日？請回答「日」（幾號）。`,
+    answerNum: end,
+    answerText: `${month + 1} 月 ${end} 日`,
+    trap: `${start}＋${add}＝${start + add} 已經超過 ${month} 月的 ${dim} 天，要跨月：${start + add}−${dim}＝${end}，所以是 ${month + 1} 月 ${end} 日。`,
+  };
+}
+
+// ⑩-3：星期幾——幾天後是星期幾（用 7 的餘數）
+// 答案用 1~7 表示星期一~日（避免數字鍵盤無法輸入開頭 0）
+function templateWeekday() {
+  const WD = ['一', '二', '三', '四', '五', '六', '日']; // 索引 0~6 ↔ 答案 1~7
+  const startIdx = randInt(0, 6);
+  const add = randInt(8, 25);
+  const endIdx = (startIdx + add) % 7;
+  return {
+    category: CAT_DATE,
+    question: `今天是星期${WD[startIdx]}。過了 ${add} 天以後是星期幾？請用數字回答（星期一到日就填 1 到 7）。`,
+    answerNum: endIdx + 1,
+    answerText: `星期${WD[endIdx]}（填 ${endIdx + 1}）`,
+    trap: `每 7 天星期就轉一圈。${add}÷7＝${Math.floor(add / 7)} 週餘 ${add % 7} 天，從星期${WD[startIdx]}再往後數 ${add % 7} 天就是星期${WD[endIdx]}。`,
+  };
+}
+
 const TEMPLATES = [
   // ① 語意陷阱
   templateCompareSave, templateQueueTotal, templateQueuePosition, templateIncreaseTo,
@@ -785,6 +992,14 @@ const TEMPLATES = [
   templateAgeGap, templateChickenRabbit, templateBoatTrips, templateGiveAway,
   templateSharePlus, templateTimesAs, templateReadDays, templatePattern,
   templatePatternMul, templateReverse, templateWeeks, templateElapsed,
+  // ⑦ 分數
+  templateFracCompareSameDen, templateFracCompareSameNum, templateFracAdd, templateFracSub,
+  // ⑧ 一位小數
+  templateDecimalMeaning, templateDecimalAdd, templateDecimalMoney,
+  // ⑨ 面積／周長
+  templateRectArea, templateRectPerimeter, templateSquarePerimeter,
+  // ⑩ 日期
+  templateDateInclusive, templateDateAcrossMonth, templateWeekday,
 ];
 
 function genOne() {
