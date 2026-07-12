@@ -119,13 +119,108 @@
     font-size: 0.82rem;
     text-align: center;
   }
+
+  /* 進度列 */
+  .progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .progress-dots { display: flex; gap: 6px; flex: 1; }
+  .dot {
+    flex: 1;
+    height: 8px;
+    border-radius: 999px;
+    background: #f1e2d3;
+    transition: background 0.2s;
+  }
+  .dot.ok { background: var(--ok); }
+  .dot.bad { background: var(--bad); }
+  .dot.current { background: var(--accent); }
+  .progress-text { font-size: 0.85rem; color: var(--muted); font-weight: 700; white-space: nowrap; }
+
+  /* 結算頁 */
+  .result { text-align: center; }
+  .result h2 { font-size: 1.6rem; margin: 4px 0 6px; color: var(--accent-dark); }
+  .result .score {
+    font-size: 3rem;
+    font-weight: 800;
+    color: var(--accent);
+    margin: 10px 0;
+  }
+  .result .score small { font-size: 1.4rem; color: var(--muted); font-weight: 700; }
+  .result .msg { font-size: 1.1rem; margin: 6px 0 20px; }
+  .result-list { text-align: left; margin: 18px 0 8px; }
+  .result-item {
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    line-height: 1.6;
+    font-size: 0.95rem;
+  }
+  .result-item.ok  { background: #ecfdf5; border-left: 5px solid var(--ok); }
+  .result-item.bad { background: #fef2f2; border-left: 5px solid var(--bad); }
+  .result-item .ri-q { font-weight: 600; }
+  .result-item .ri-detail { color: var(--muted); font-size: 0.88rem; margin-top: 4px; }
+  .result-item .ri-detail b { color: var(--ink); }
+  .btn-big {
+    background: var(--accent);
+    color: #fff;
+    width: 100%;
+    font-size: 1.15rem;
+    padding: 16px;
+    margin-top: 8px;
+  }
+  .btn-big:hover { background: var(--accent-dark); }
+
+  /* 慶祝動畫（仿 aiaili_math） */
+  #celebrate {
+    position: fixed; inset: 0; z-index: 50;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(255,247,237,0.6); overflow: hidden; pointer-events: none;
+  }
+  #celebrate.show { display: flex; }
+  #celebrate.fade { animation: cele-fade .5s ease-in forwards; }
+  @keyframes cele-fade { from { opacity: 1; } to { opacity: 0; } }
+  .cele-img {
+    width: 80%; max-width: 30rem; object-fit: contain;
+    filter: drop-shadow(0 8px 16px rgba(0,0,0,.12));
+    animation: cele-pop .5s cubic-bezier(0.34,1.56,0.64,1) both,
+               cele-bounce 1.2s ease-in-out 0.5s infinite;
+  }
+  @keyframes cele-pop {
+    0%   { transform: scale(0.2) rotate(-12deg); opacity: 0; }
+    60%  { transform: scale(1.15) rotate(6deg);  opacity: 1; }
+    100% { transform: scale(1)   rotate(0);      opacity: 1; }
+  }
+  @keyframes cele-bounce {
+    0%,100% { transform: scale(1)    rotate(0deg); }
+    25%     { transform: scale(1.08) rotate(-2.5deg); }
+    50%     { transform: scale(0.97) rotate(0deg); }
+    75%     { transform: scale(1.08) rotate(2.5deg); }
+  }
+  .cele-sparkles { position: absolute; inset: 0; pointer-events: none; }
+  .cele-sparkles span { position: absolute; font-size: 2.2rem; animation: cele-sparkle 2.2s ease-out infinite; }
+  @keyframes cele-sparkle {
+    0%   { transform: scale(0.4) translateY(15px); opacity: 0; }
+    25%  { transform: scale(1.2) translateY(0);    opacity: 1; }
+    80%  { transform: scale(1)   translateY(-18px); opacity: 1; }
+    100% { transform: scale(0.6) translateY(-36px); opacity: 0; }
+  }
 </style>
 </head>
 <body>
   <h1>🎯 我愛陷阱題</h1>
-  <p class="subtitle">國小三年級・語意／條件／單位陷阱 — 小心讀清楚題目喔！</p>
+  <p class="subtitle">國小三年級・一關 8 題，全對就有慶祝畫面！</p>
 
-  <div class="card">
+  <!-- 作答卡 -->
+  <div class="card" id="quizCard">
+    <div class="progress">
+      <div class="progress-dots" id="progressDots"></div>
+      <span class="progress-text" id="progressText">第 1 / 8 題</span>
+    </div>
+
     <span class="tag" id="tag">陷阱題</span>
     <p class="question" id="question">載入中…</p>
 
@@ -142,11 +237,26 @@
 
     <div class="btn-row">
       <button class="btn-secondary" id="showBtn">看答案 / 解析</button>
-      <button class="btn-secondary" id="nextBtn">換一題 ➜</button>
+      <button class="btn-secondary" id="nextBtn">下一題 ➜</button>
     </div>
 
     <p class="hint-note">提示：答案只要填數字就好（例如「8」或「500」）。跑步題請照「誰比較快，快幾秒」的方式想。</p>
   </div>
+
+  <!-- 結算卡 -->
+  <div class="card result" id="resultCard" style="display:none;">
+    <h2 id="resultTitle">這一關結束囉！</h2>
+    <div class="score"><span id="resultScore">0</span><small> / 8 題答對</small></div>
+    <p class="msg" id="resultMsg"></p>
+    <div class="result-list" id="resultList"></div>
+    <button class="btn-big" id="againBtn">再玩一關 ➜</button>
+  </div>
+
+<!-- 慶祝 -->
+<div id="celebrate">
+  <div class="cele-sparkles" id="celeSparkles"></div>
+  <img class="cele-img" src="assets/images/celebration.png" alt="慶祝" draggable="false" />
+</div>
 
 <script>
 // ====== 題目產生器 ======
@@ -637,23 +747,113 @@ function genOne() {
   throw new Error('抽不到合格題目');
 }
 
-// ====== 頁面互動 ======
-let current = null;
+// ====== 音效（沿用 aiaili_math 的預熱池 + iOS 解鎖機制） ======
+const SOUND_FILES = { ding: 'ding.mp3', eoh: 'eoh.mp3', cheer: 'cheer.mp3' };
+const SOUND_BASE = 'assets/sounds/';
+const POOL_SIZE = 2;
+const pools = { ding: [], eoh: [], cheer: [] };
+function makeElement(name) {
+  const el = new Audio(SOUND_BASE + SOUND_FILES[name]);
+  el.preload = 'auto'; el.load();
+  return el;
+}
+for (const name of Object.keys(SOUND_FILES))
+  for (let i = 0; i < POOL_SIZE; i++) pools[name].push(makeElement(name));
 
-const $ = (id) => document.getElementById(id);
+let audioUnlocked = false, unlockInFlight = false;
+// iOS 要「在使用者手勢內真的播一次聲音（不能靜音）」才會解鎖 audio channel。
+function unlockSounds() {
+  if (audioUnlocked || unlockInFlight) return;
+  unlockInFlight = true;
+  const dummy = new Audio(SOUND_BASE + SOUND_FILES.ding);
+  dummy.play()
+    .then(() => { audioUnlocked = true; unlockInFlight = false; })
+    .catch(() => { unlockInFlight = false; });
+}
+const uh = () => unlockSounds();
+document.addEventListener('touchstart', uh, { capture: true, passive: true });
+document.addEventListener('touchend', uh, { capture: true, passive: true });
+document.addEventListener('mousedown', uh, { capture: true });
+document.addEventListener('click', uh, { capture: true });
+function playSound(name) {
+  const pool = pools[name];
+  let el = pool.find((e) => e.paused || e.ended);
+  if (!el) el = makeElement(name);
+  else if (el.currentTime !== 0) el.currentTime = 0;
+  el.play().catch(() => {});
+}
+
+// ====== 慶祝畫面（仿 aiaili_math） ======
+const CELE_EMOJIS = ['⭐','✨','🎉','🌟','🎊','🌸'];
+const CELE_DURATION = 3600;
+function renderCeleSparkles() {
+  const el = $('celeSparkles');
+  el.innerHTML = '';
+  const spots = [
+    [10,16],[86,20],[20,72],[80,76],[50,10],[8,46],
+    [92,50],[42,88],[66,90],[30,30],[72,34],[16,60],
+  ];
+  spots.forEach(([left, top], i) => {
+    const s = document.createElement('span');
+    s.textContent = CELE_EMOJIS[i % CELE_EMOJIS.length];
+    s.style.left = left + '%';
+    s.style.top = top + '%';
+    s.style.animationDelay = (i * 0.12 % 1.2) + 's';
+    el.appendChild(s);
+  });
+}
+function playCelebration() {
+  playSound('cheer');
+  renderCeleSparkles();
+  const celebrate = $('celebrate');
+  celebrate.classList.remove('fade');
+  celebrate.classList.add('show');
+  const img = celebrate.querySelector('.cele-img');
+  if (img) { img.style.animation = 'none'; void img.offsetWidth; img.style.animation = ''; }
+  setTimeout(() => celebrate.classList.add('fade'), CELE_DURATION - 500);
+  setTimeout(() => celebrate.classList.remove('show', 'fade'), CELE_DURATION);
+}
+
+// ====== 關卡邏輯：一關 8 題 ======
+const SET_SIZE = 8;
+let current = null;      // 這一題
+let idx = 0;             // 目前第幾題（0-based）
+let answered = false;    // 這一題是否已對過答案
+let results = [];        // 每題結果：{ q, user, correct }
+
+function $(id) { return document.getElementById(id); }
+
+function renderProgress() {
+  const dots = $('progressDots');
+  dots.innerHTML = '';
+  for (let i = 0; i < SET_SIZE; i++) {
+    const d = document.createElement('span');
+    d.className = 'dot';
+    if (i < results.length) d.classList.add(results[i].correct ? 'ok' : 'bad');
+    else if (i === idx) d.classList.add('current');
+    dots.appendChild(d);
+  }
+  $('progressText').textContent = `第 ${idx + 1} / ${SET_SIZE} 題`;
+}
 
 function loadQuestion() {
   current = genOne();
+  answered = false;
   $('tag').textContent = current.category;
   $('question').textContent = current.question;
   $('userAnswer').value = '';
+  $('userAnswer').disabled = false;
   $('feedback').textContent = '';
   $('feedback').className = 'feedback';
   $('explain').classList.remove('show');
+  $('checkBtn').disabled = false;
+  $('nextBtn').textContent = (idx === SET_SIZE - 1) ? '看成績 ➜' : '下一題 ➜';
+  renderProgress();
   $('userAnswer').focus();
 }
 
 function checkAnswer() {
+  if (answered) return;
   const raw = $('userAnswer').value.trim();
   if (raw === '') {
     $('feedback').textContent = '先輸入一個答案再對答案喔～';
@@ -662,13 +862,22 @@ function checkAnswer() {
   }
   // 從輸入中抓出數字（容許孩子多打單位，例如 "8個" "500 毫升"）
   const num = parseInt(raw.replace(/[^0-9]/g, ''), 10);
-  if (num === current.answerNum) {
+  const correct = num === current.answerNum;
+  answered = true;
+  $('userAnswer').disabled = true;
+  $('checkBtn').disabled = true;
+  results.push({ q: current, user: raw, correct });
+  if (correct) {
+    playSound('ding');
     $('feedback').textContent = '🎉 答對了！你有看清楚陷阱！';
     $('feedback').className = 'feedback ok';
   } else {
-    $('feedback').textContent = '再想想～是不是掉進陷阱了？點「看答案 / 解析」看看。';
+    playSound('eoh');
+    $('feedback').textContent = '答錯了～看看下面的解析。';
     $('feedback').className = 'feedback bad';
+    showExplain();
   }
+  renderProgress();
 }
 
 function showExplain() {
@@ -677,14 +886,74 @@ function showExplain() {
   $('explain').classList.add('show');
 }
 
+function nextStep() {
+  if (!answered) {           // 還沒對答案就按「下一題」→ 先幫他對答案並顯示解析，不直接跳過
+    checkAnswer();
+    return;                  // 對完答案先停一下讓孩子看解析，再按一次才前進到下一題
+  }
+  idx++;
+  if (idx >= SET_SIZE) {
+    showResult();
+  } else {
+    loadQuestion();
+  }
+}
+
+function showResult() {
+  const correctCount = results.filter(r => r.correct).length;
+  const allRight = correctCount === SET_SIZE;
+
+  $('quizCard').style.display = 'none';
+  $('resultCard').style.display = '';
+
+  $('resultScore').textContent = correctCount;
+  $('resultTitle').textContent = allRight ? '🏆 全部答對，太厲害了！' : '這一關結束囉！';
+  if (allRight) {
+    $('resultMsg').textContent = '八題全對，完全沒有掉進陷阱！';
+  } else if (correctCount >= 6) {
+    $('resultMsg').textContent = '很不錯！再檢查一下錯的題目就更棒了。';
+  } else if (correctCount >= 3) {
+    $('resultMsg').textContent = '繼續加油！看看下面錯在哪裡。';
+  } else {
+    $('resultMsg').textContent = '別灰心，先看懂下面的解析再挑戰一次！';
+  }
+
+  const list = $('resultList');
+  list.innerHTML = '';
+  results.forEach((r, i) => {
+    const item = document.createElement('div');
+    item.className = 'result-item ' + (r.correct ? 'ok' : 'bad');
+    const mark = r.correct ? '✅' : '❌';
+    let html = `<div class="ri-q">${mark} 第 ${i + 1} 題：${r.q.question}</div>`;
+    if (!r.correct) {
+      html += `<div class="ri-detail">你的答案：${r.user}　→　正確答案：<b>${r.q.answerText}</b><br>⚠️ ${r.q.trap}</div>`;
+    }
+    item.innerHTML = html;
+    list.appendChild(item);
+  });
+
+  if (allRight) setTimeout(playCelebration, 300);
+}
+
+function startSet() {
+  idx = 0;
+  results = [];
+  $('resultCard').style.display = 'none';
+  $('quizCard').style.display = '';
+  loadQuestion();
+}
+
 $('checkBtn').addEventListener('click', checkAnswer);
 $('showBtn').addEventListener('click', showExplain);
-$('nextBtn').addEventListener('click', loadQuestion);
+$('nextBtn').addEventListener('click', nextStep);
+$('againBtn').addEventListener('click', startSet);
 $('userAnswer').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') checkAnswer();
+  if (e.key === 'Enter') { answered ? nextStep() : checkAnswer(); }
 });
 
-loadQuestion();
+// 預載慶祝圖
+(function preloadCele(){ const im = new Image(); im.src = 'assets/images/celebration.png'; })();
+startSet();
 </script>
 </body>
 </html>
